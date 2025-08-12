@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Vacation & Absence Calendar — FedEx + Login (Demo)</title>
+<style>
+:root{
+  --fedex-purple:#4D148C;
+  --fedex-orange:#FF6600;
+  --bg:#F5F5F5;
+  --card:#ffffff;
+  --text:#222;
+  --muted:#6b7280;
+  --vacation:#157A3B; /* darker green for contrast */
+  --sick:#B92B2B;     /* darker red */
+  --other:#1E73BE;    /* darker blue */
+  --tag-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+/* Base */
+*{box-sizing:border-box;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+a{color:inherit}
+
+/* Header */
+header{
+  background:linear-gradient(90deg,var(--fedex-purple),#3b0f6e);
+  color:#fff;padding:12px 12px; display:flex; align-items:center; justify-content:space-between;
+}
+header h1{margin:0;font-size:1.05rem;letter-spacing:.2px}
+.header-right{display:flex;gap:10px;align-items:center}
+.user-chip{background:rgba(255,255,255,.12);padding:6px 10px;border-radius:999px;font-weight:700}
+.btn-logout{background:#fff; color:var(--fedex-purple); border:0; padding:6px 10px; border-radius:8px; cursor:pointer; font-weight:800}
+
+/* Wrapper */
+.wrap{max-width:1120px;margin:16px auto;padding:12px}
+
+/* Controls */
+.controls{display:flex;flex-wrap:wrap;gap:10px;background:var(--card);padding:12px;border-radius:10px;box-shadow:0 8px 26px rgba(15,23,42,0.06);align-items:center}
+.controls input[type="text"], .controls input[type="password"], .controls input[type="number"], .controls select, .controls button{
+  padding:8px 10px;border-radius:8px;border:1px solid #e6e9ee;font-size:14px
+}
+.btn-primary{background:var(--fedex-orange);color:#fff;border:none;cursor:pointer;padding:8px 12px;border-radius:8px;font-weight:700}
+.btn-secondary{background:#fff;border:1px solid #e6e9ee;color:var(--text);cursor:pointer;padding:8px 10px;border-radius:8px}
+.btn-primary:disabled,.btn-secondary:disabled{opacity:.5;cursor:not-allowed}
+
+/* Calendar layout */
+.calendar-wrap{display:flex;gap:16px;margin-top:14px;align-items:flex-start;flex-wrap:wrap}
+.calendar{flex:1 1 700px;background:var(--card);border-radius:12px;padding:12px;box-shadow:0 10px 30px rgba(15,23,42,0.06)}
+.sidebar{width:320px;background:var(--card);border-radius:12px;padding:12px;box-shadow:0 10px 30px rgba(15,23,42,0.06)}
+
+/* Month / Nav */
+.monthbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.month-title{font-weight:800;color:var(--fedex-purple);font-size:1.05rem}
+.nav-btn{background:transparent;border:1px solid rgba(0,0,0,0.06);padding:8px 10px;border-radius:8px;cursor:pointer;color:var(--fedex-purple);font-weight:700}
+.nav-btn:hover{background:rgba(77,20,140,0.06)}
+
+/* Grid */
+.weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:8px}
+.weekday{font-size:12px;color:var(--muted);text-align:center;font-weight:700}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+.day{background:#fbfdff;border-radius:10px;min-height:88px;padding:8px;display:flex;flex-direction:column;gap:8px;cursor:pointer;position:relative;border:1px solid transparent;transition:transform .08s, box-shadow .12s}
+.day.empty{background:transparent;cursor:default;border:none}
+.day:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(15,23,42,0.06)}
+.date-num{font-weight:800;color:var(--fedex-purple);font-size:13px}
+
+/* Tags & count */
+.badges{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
+.emp-tag{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700;color:#fff;box-shadow:var(--tag-shadow);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.emp-tag.vacation{background:var(--vacation)}
+.emp-tag.sick{background:var(--sick)}
+.emp-tag.other{background:var(--other)}
+.emp-tag:hover{transform:translateY(-2px)}
+.count-pill{position:absolute;right:8px;top:8px;background:rgba(0,0,0,0.06);color:var(--text);padding:4px 8px;border-radius:999px;font-weight:700;font-size:12px}
+
+/* Sidebar legend & table */
+.legend-title{font-weight:800;color:var(--fedex-purple);margin-bottom:6px}
+.legend{display:flex;flex-wrap:nowrap;gap:12px;white-space:nowrap;overflow-x:auto;padding-bottom:6px}
+.legend::-webkit-scrollbar{height:6px}
+.legend::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.12);border-radius:3px}
+.legend-item{display:flex;gap:8px;align-items:center;color:var(--muted)}
+.sw{width:14px;height:14px;border-radius:4px}
+
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+th, td{padding:8px;border-bottom:1px solid #eef2f6}
+th{background:var(--fedex-purple);color:#fff;text-align:left}
+td.name-cell{cursor:pointer;color:var(--fedex-purple);font-weight:800;white-space:nowrap}
+td.counts{text-align:right;white-space:nowrap}
+
+/* Summary container scroll for small screens */
+.summary { overflow-x:auto }
+.summary table { min-width:520px }
+
+/* Modal (Stats/Edit) */
+.modal{position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.44);display:none;align-items:center;justify-content:center;padding:18px;z-index:9999}
+.modal.active{display:flex}
+.modal-card{width:100%;max-width:600px;background:var(--card);border-radius:12px;overflow:hidden;box-shadow:0 12px 30px rgba(15,23,42,0.18)}
+.modal-header{background:var(--fedex-purple);color:#fff;padding:14px 16px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+.modal-body{padding:16px;background:#fff}
+.stat-row{margin-bottom:14px}
+.stat-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-weight:700;color:var(--muted)}
+.bar-wrap{background:#eef4fb;border-radius:12px;height:24px;overflow:hidden}
+.bar-fill{height:100%;border-radius:12px 0 0 12px;text-align:right;padding-right:10px;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:flex-end}
+.stat-controls{display:flex;gap:8px;align-items:center;margin-top:8px}
+.stat-controls input[type="number"], .stat-controls input[type="text"], .stat-controls input[type="password"]{width:140px;padding:8px;border-radius:8px;border:1px solid #e6eef6}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px 18px;background:#fff}
+.btn-danger{background:#ef4444;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:800}
+.btn-save{background:var(--fedex-orange);color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:800}
+.btn-cancel{background:#fff;border:1px solid #e6eef6;padding:8px 12px;border-radius:8px;cursor:pointer}
+
+/* Login screen (FedEx themed) */
+.login-wrap{
+  min-height:100vh; display:flex; align-items:center; justify-content:center; background:var(--bg); padding:16px;
+}
+.login-card{
+  width:100%; max-width:420px; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 16px 40px rgba(15,23,42,.12);
+}
+.login-head{ background:var(--fedex-purple); color:#fff; padding:16px; text-align:center; font-weight:800 }
+.login-body{ padding:16px; display:flex; flex-direction:column; gap:10px }
+.login-body input{
+  padding:10px 12px; border-radius:10px; border:1px solid #e6e9ee; font-size:15px; outline:none;
+}
+.login-body input:focus{ border-color:var(--fedex-purple); box-shadow:0 0 0 3px rgba(77,20,140,.15) }
+.login-actions{ display:flex; gap:10px; margin-top:6px }
+.login-btn{ background:var(--fedex-orange); color:#fff; border:0; padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:800; width:100% }
+.login-note{ font-size:12px; color:var(--muted); text-align:center; margin-top:8px }
+
+/* Role-based disabled look */
+.readonly{pointer-events:none; opacity:.75}
+.hidden{display:none !important}
+
+/* Responsive */
+@media (max-width:920px){
+  .calendar-wrap{flex-direction:column}
+  .sidebar{width:100%}
+  .day{min-height:72px}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN (shown when no user logged in) -->
+<div id="loginScreen" class="login-wrap" style="display:none">
+  <div class="login-card">
+    <div class="login-head">Team Vacation & Absence — Sign In</div>
+    <div class="login-body">
+      <label>Username</label>
+      <input id="loginUsername" type="text" placeholder="admin" value=""/>
+      <label>Password</label>
+      <input id="loginPassword" type="password" placeholder="••••••••" value=""/>
+      <div class="login-actions">
+        <button id="loginBtn" class="login-btn">Login</button>
+      </div>
+      <div class="login-note">Contact admin for login credentials.</div>
+    </div>
+  </div>
+</div>
+
+<!-- APP (shown after login) -->
+<div id="appRoot" style="display:none">
+  <header>
+    <h1>Vacation & Absence Calendar</h1>
+    <div class="header-right">
+      <div id="currentUserChip" class="user-chip">—</div>
+      <button id="logoutBtn" class="btn-logout">Logout</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="controls" role="region" aria-label="controls">
+      <!-- Admin-only: employee + login creation -->
+      <div id="adminAddRow" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+        <input id="newEmployee" type="text" placeholder="New employee name" />
+        <input id="newUsername" type="text" placeholder="Viewer username (optional)"/>
+        <input id="newPassword" type="password" placeholder="Viewer password (optional)"/>
+        <button id="addEmployeeBtn" class="btn-primary">Add Employee</button>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label style="font-weight:700;color:var(--muted)">Employee</label>
+        <select id="employeeSelect" style="min-width:220px"></select>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;">
+        <label style="font-weight:700;color:var(--muted)">Type</label>
+        <select id="absenceType">
+          <option value="vacation">Vacation</option>
+          <option value="sick">Sick</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <button id="prevMonth" class="btn-secondary">Prev</button>
+        <div id="monthTitle" class="month-title"></div>
+        <button id="nextMonth" class="btn-secondary">Next</button>
+      </div>
+    </div>
+
+    <div class="calendar-wrap">
+      <main class="calendar" aria-label="calendar">
+        <div class="weekdays" id="weekdaysRow"></div>
+        <div class="days" id="daysGrid"></div>
+      </main>
+
+      <aside class="sidebar" aria-label="sidebar">
+        <div class="legend-title">Legend</div>
+        <div class="legend" id="legendRow">
+          <div class="legend-item"><div class="sw" style="background:var(--vacation)"></div> Vacation</div>
+          <div class="legend-item"><div class="sw" style="background:var(--sick)"></div> Sick</div>
+          <div class="legend-item"><div class="sw" style="background:var(--other)"></div> Other</div>
+        </div>
+
+        <div style="margin-top:12px;font-weight:800;color:var(--fedex-purple)">Employees</div>
+        <div class="summary">
+          <table aria-label="employee table">
+            <thead><tr><th>Name</th><th style="text-align:right">V / S / O</th></tr></thead>
+            <tbody id="employeeTableBody"></tbody>
+          </table>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Stats + Edit Modal -->
+  <div id="statsModal" class="modal" role="dialog" aria-modal="true">
+    <div class="modal-card" role="document">
+      <div class="modal-header">
+        <div id="modalEmpName">Employee Name</div>
+        <div id="modalSub" style="font-size:13px;color:rgba(255,255,255,0.9)"></div>
+      </div>
+
+      <div class="modal-body">
+        <!-- Vacation -->
+        <div class="stat-row">
+          <div class="stat-label">
+            <div>Vacation</div>
+            <div id="vacNumbers" class="small" style="color:var(--muted)"></div>
+          </div>
+          <div class="bar-wrap"><div id="vacBar" class="bar-fill" style="width:0;background:var(--vacation)"></div></div>
+          <div class="stat-controls">
+            <label style="color:var(--muted)">Max Vacation</label>
+            <input id="vacMaxInput" type="number" min="0" />
+          </div>
+        </div>
+
+        <!-- Sick -->
+        <div class="stat-row">
+          <div class="stat-label">
+            <div>Sick</div>
+            <div id="sickNumbers" class="small" style="color:var(--muted)"></div>
+          </div>
+          <div class="bar-wrap"><div id="sickBar" class="bar-fill" style="width:0;background:var(--sick)"></div></div>
+          <div class="stat-controls">
+            <label style="color:var(--muted)">Max Sick</label>
+            <input id="sickMaxInput" type="number" min="0" />
+          </div>
+        </div>
+
+        <!-- Other -->
+        <div class="stat-row">
+          <div class="stat-label">
+            <div>Other</div>
+            <div id="otherNumbers" class="small" style="color:var(--muted)"></div>
+          </div>
+          <div class="bar-wrap"><div id="otherBar" class="bar-fill" style="width:0;background:var(--other)"></div></div>
+          <div class="stat-controls">
+            <label style="color:var(--muted)">Max Other</label>
+            <input id="otherMaxInput" type="number" min="0" />
+          </div>
+        </div>
+
+        <!-- Admin-only: account management for this employee -->
+        <div id="accountMgmt" class="stat-row" style="border-top:1px solid #eef2f6;padding-top:12px;margin-top:16px;">
+          <div class="stat-label"><div>Viewer Account</div><div id="acctStatus" class="small" style="color:var(--muted)"></div></div>
+          <div class="stat-controls">
+            <label style="color:var(--muted)">Username</label>
+            <input id="acctUsername" type="text" placeholder="username"/>
+            <label style="color:var(--muted)">New Password</label>
+            <input id="acctPassword" type="password" placeholder="Set/Reset password"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="deleteBtn" class="btn-danger">Delete Employee</button>
+        <button id="saveBtn" class="btn-save">Save Changes</button>
+        <button id="closeBtn" class="btn-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =============================
+   DEMO AUTH (Frontend only)
+   ============================= */
+const USERS_KEY = 'vac_demo_users_v1';
+const SESSION_KEY = 'vac_demo_session_v1';
+/* user shape: { username, password, role: 'admin'|'viewer', employeeName?: string } */
+function seedUsersIfEmpty(){
+  const existing = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+  if(existing.length === 0){
+    const seed = [
+      { username:'admin', password:'admin123', role:'admin' },
+      { username:'alice', password:'pass1', role:'viewer', employeeName:'Alice Johnson' },
+      { username:'bob',   password:'pass2', role:'viewer', employeeName:'Bob Smith' },
+    ];
+    localStorage.setItem(USERS_KEY, JSON.stringify(seed));
+  }
+}
+function getUsers(){ return JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); }
+function saveUsers(list){ localStorage.setItem(USERS_KEY, JSON.stringify(list)); }
+function setSession(user){ localStorage.setItem(SESSION_KEY, JSON.stringify(user)); }
+function getSession(){ try{ return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch { return null; } }
+function clearSession(){ localStorage.removeItem(SESSION_KEY); }
+
+function login(username, password){
+  const users = getUsers();
+  const u = users.find(x => x.username === username && x.password === password);
+  if(!u) return null;
+  setSession(u);
+  return u;
+}
+
+function logout(){
+  clearSession();
+  location.reload();
+}
+
+/* =============================
+   App data
+   ============================= */
+const STORAGE_KEY = 'vac_calendar_v2_login_demo';
+let state = {
+  employees: {}, // name -> { vacationDays:[], sickDays:[], otherDays:[], maxVacation:20, maxSick:10, maxOther:5 }
+  viewYear: new Date().getFullYear(),
+  viewMonth: new Date().getMonth()
+};
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ const parsed = JSON.parse(raw); state = Object.assign(state, parsed); }
+  }catch(e){}
+}
+function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+/* Seed some employees to match demo viewers */
+function seedEmployeesIfEmpty(){
+  if(Object.keys(state.employees).length === 0){
+    state.employees['Alice Johnson'] = { vacationDays:[], sickDays:[], otherDays:[], maxVacation:20, maxSick:10, maxOther:5 };
+    state.employees['Bob Smith'] = { vacationDays:[], sickDays:[], otherDays:[], maxVacation:20, maxSick:10, maxOther:5 };
+    // add a couple example days
+    const today = new Date();
+    const y = today.getFullYear(), m = today.getMonth();
+    const pad = (n)=> String(n).padStart(2,'0');
+    const d1 = `${y}-${pad(m+1)}-05`;
+    const d2 = `${y}-${pad(m+1)}-12`;
+    const d3 = `${y}-${pad(m+1)}-15`;
+    state.employees['Alice Johnson'].vacationDays.push(d1, d2);
+    state.employees['Bob Smith'].sickDays.push(d3);
+    saveState();
+  }
+}
+
+/* =============================
+   Utils
+   ============================= */
+function fmtDate(y,m,d){ return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function getTypeColor(type){
+  if(type==='vacation') return getComputedStyle(document.documentElement).getPropertyValue('--vacation').trim();
+  if(type==='sick') return getComputedStyle(document.documentElement).getPropertyValue('--sick').trim();
+  return getComputedStyle(document.documentElement).getPropertyValue('--other').trim();
+}
+
+/* =============================
+   DOM Refs
+   ============================= */
+const loginScreen = document.getElementById('loginScreen');
+const loginBtn = document.getElementById('loginBtn');
+const loginUsername = document.getElementById('loginUsername');
+const loginPassword = document.getElementById('loginPassword');
+
+const appRoot = document.getElementById('appRoot');
+const logoutBtn = document.getElementById('logoutBtn');
+const currentUserChip = document.getElementById('currentUserChip');
+
+const newEmployeeEl = document.getElementById('newEmployee');
+const newUsernameEl = document.getElementById('newUsername');
+const newPasswordEl = document.getElementById('newPassword');
+const addEmployeeBtn = document.getElementById('addEmployeeBtn');
+const adminAddRow = document.getElementById('adminAddRow');
+
+const employeeSelect = document.getElementById('employeeSelect');
+const absenceType = document.getElementById('absenceType');
+const weekdaysRow = document.getElementById('weekdaysRow');
+const daysGrid = document.getElementById('daysGrid');
+const monthTitle = document.getElementById('monthTitle');
+const prevMonthBtn = document.getElementById('prevMonth');
+const nextMonthBtn = document.getElementById('nextMonth');
+const employeeTableBody = document.getElementById('employeeTableBody');
+
+const statsModal = document.getElementById('statsModal');
+const modalEmpName = document.getElementById('modalEmpName');
+const vacNumbers = document.getElementById('vacNumbers');
+const sickNumbers = document.getElementById('sickNumbers');
+const otherNumbers = document.getElementById('otherNumbers');
+const vacBar = document.getElementById('vacBar');
+const sickBar = document.getElementById('sickBar');
+const otherBar = document.getElementById('otherBar');
+const vacMaxInput = document.getElementById('vacMaxInput');
+const sickMaxInput = document.getElementById('sickMaxInput');
+const otherMaxInput = document.getElementById('otherMaxInput');
+const saveBtn = document.getElementById('saveBtn');
+const closeBtn = document.getElementById('closeBtn');
+const deleteBtn = document.getElementById('deleteBtn');
+const accountMgmt = document.getElementById('accountMgmt');
+const acctUsername = document.getElementById('acctUsername');
+const acctPassword = document.getElementById('acctPassword');
+const acctStatus = document.getElementById('acctStatus');
+
+/* =============================
+   App Boot
+   ============================= */
+seedUsersIfEmpty();
+loadState();
+seedEmployeesIfEmpty();
+setupLoginGate();
+
+/* =============================
+   Login flow
+   ============================= */
+function setupLoginGate(){
+  const session = getSession();
+  if(!session){
+    loginScreen.style.display='flex';
+    appRoot.style.display='none';
+  }else{
+    loginScreen.style.display='none';
+    appRoot.style.display='block';
+    initAppForUser(session);
+  }
+}
+loginBtn.addEventListener('click', ()=>{
+  const u = login(loginUsername.value.trim(), loginPassword.value);
+  if(!u){ alert('Invalid credentials'); return; }
+  initAppForUser(u);
+  loginScreen.style.display='none';
+  appRoot.style.display='block';
+});
+logoutBtn.addEventListener('click', logout);
+
+function initAppForUser(user){
+  currentUserChip.textContent = `${user.username} (${user.role})`;
+  // Role-based UI
+  const isAdmin = user.role === 'admin';
+  adminAddRow.style.display = isAdmin ? 'flex' : 'none';
+  addEmployeeBtn.disabled = !isAdmin;
+  // Viewers cannot edit days or max settings, so disable Save/Delete in modal later dynamically
+
+  renderWeekdays();
+  renderEmployeeSelect(user);
+  renderCalendar(user);
+  renderSummary(user);
+
+  prevMonthBtn.onclick = ()=> { changeMonth(-1, user); };
+  nextMonthBtn.onclick = ()=> { changeMonth(1, user); };
+
+  addEmployeeBtn.onclick = ()=> addEmployee(user);
+}
+
+/* =============================
+   Rendering
+   ============================= */
+function renderWeekdays(){
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  weekdaysRow.innerHTML = days.map(d => `<div class="weekday">${d}</div>`).join('');
+}
+
+function renderEmployeeSelect(user){
+  employeeSelect.innerHTML = '<option value="">-- select employee --</option>';
+  const list = Object.keys(state.employees);
+  // Viewers: they can still select someone to attach a day? No — viewers can't toggle, but keep select to read names for tags.
+  list.forEach(name=>{
+    const o = document.createElement('option'); o.value = name; o.textContent = name;
+    employeeSelect.appendChild(o);
+  });
+}
+
+function changeMonth(delta, user){
+  state.viewMonth += delta;
+  if(state.viewMonth < 0){ state.viewMonth = 11; state.viewYear--; }
+  if(state.viewMonth > 11){ state.viewMonth = 0; state.viewYear++; }
+  renderCalendar(user);
+}
+
+function renderCalendar(user){
+  const dt = new Date(state.viewYear, state.viewMonth, 1);
+  monthTitle.textContent = dt.toLocaleString(undefined,{month:'long', year:'numeric'});
+  daysGrid.innerHTML = '';
+  const startDay = dt.getDay();
+  const daysInMonth = new Date(state.viewYear, state.viewMonth+1, 0).getDate();
+
+  for(let i=0;i<startDay;i++){ const e=document.createElement('div'); e.className='day empty'; daysGrid.appendChild(e); }
+
+  const isAdmin = user.role === 'admin';
+
+  for(let d=1; d<=daysInMonth; d++){
+    const dateStr = fmtDate(state.viewYear, state.viewMonth, d);
+    const cell = document.createElement('div'); cell.className='day'; cell.dataset.date=dateStr;
+
+    const num = document.createElement('div'); num.className='date-num'; num.textContent = d;
+    cell.appendChild(num);
+
+    const badges = document.createElement('div'); badges.className='badges';
+    const badgesList = [];
+    for(const [name, e] of Object.entries(state.employees)){
+      if(e.vacationDays.includes(dateStr)) badgesList.push({name, type:'vacation'});
+      if(e.sickDays.includes(dateStr)) badgesList.push({name, type:'sick'});
+      if(e.otherDays.includes(dateStr)) badgesList.push({name, type:'other'});
+    }
+    badgesList.slice(0,3).forEach(b=>{
+      const s=document.createElement('span'); s.className=`emp-tag ${b.type}`;
+      s.textContent = b.name.length>14? b.name.slice(0,13)+'…' : b.name;
+      s.title = `${b.name} (${b.type})`;
+      badges.appendChild(s);
+    });
+    if(badgesList.length>3){
+      const more=document.createElement('span'); more.className='emp-tag';
+      more.style.background='rgba(0,0,0,0.06)'; more.style.color='var(--text)';
+      more.textContent=`+${badgesList.length-3} more`;
+      badges.appendChild(more);
+    }
+    if(badgesList.length){
+      const pill=document.createElement('div'); pill.className='count-pill'; pill.textContent=badgesList.length;
+      cell.appendChild(pill);
+    }
+    cell.appendChild(badges);
+
+    // Toggle only if admin
+    cell.addEventListener('click', ()=>{
+      if(!isAdmin){ return; }
+      const sel = employeeSelect.value;
+      if(!sel) return alert('Select an employee from the dropdown first');
+      const t = absenceType.value; toggleEmployeeDate(sel, t, dateStr, user);
+    });
+
+    daysGrid.appendChild(cell);
+  }
+}
+
+function renderSummary(user){
+  employeeTableBody.innerHTML = '';
+  const isViewer = user.role==='viewer';
+  const viewerEmployeeName = user.employeeName;
+
+  const names = Object.keys(state.employees);
+  const filteredNames = isViewer ? names.filter(n => n === viewerEmployeeName) : names;
+
+  filteredNames.forEach(name=>{
+    const e = state.employees[name];
+    const usedV = e.vacationDays.length, usedS = e.sickDays.length, usedO = e.otherDays.length;
+    const tr = document.createElement('tr');
+    const tdName = document.createElement('td'); tdName.className='name-cell'; tdName.textContent = name;
+    tdName.addEventListener('click', ()=> openStats(name, user));
+    const tdCounts = document.createElement('td'); tdCounts.className='counts';
+    tdCounts.innerHTML = `${usedV} / ${e.maxVacation} &nbsp;&nbsp; ${usedS} / ${e.maxSick} &nbsp;&nbsp; ${usedO} / ${e.maxOther}`;
+    tr.appendChild(tdName); tr.appendChild(tdCounts);
+    employeeTableBody.appendChild(tr);
+  });
+}
+
+/* =============================
+   Actions
+   ============================= */
+function addEmployee(user){
+  if(user.role!=='admin') return;
+  const name = newEmployeeEl.value.trim();
+  if(!name) return alert('Enter employee name');
+  if(state.employees[name]) return alert('Employee already exists');
+
+  state.employees[name] = { vacationDays:[], sickDays:[], otherDays:[], maxVacation:20, maxSick:10, maxOther:5 };
+  saveState();
+
+  // If username+password provided, add viewer account linked to this employee
+  const uname = newUsernameEl.value.trim();
+  const pwd = newPasswordEl.value;
+  if(uname && pwd){
+    const users = getUsers();
+    if(users.some(u=>u.username===uname)){
+      alert('Username already exists, employee added without account.');
+    }else{
+      users.push({ username: uname, password: pwd, role:'viewer', employeeName: name });
+      saveUsers(users);
+    }
+  }
+
+  newEmployeeEl.value=''; newUsernameEl.value=''; newPasswordEl.value='';
+  renderEmployeeSelect(user); renderCalendar(user); renderSummary(user);
+}
+
+function toggleEmployeeDate(name, type, dateStr, user){
+  if(user.role!=='admin') return;
+  const emp = state.employees[name]; if(!emp) return;
+  const arrKey = type + 'Days';
+  const idx = emp[arrKey].indexOf(dateStr);
+  if(idx>=0) emp[arrKey].splice(idx,1);
+  else {
+    const used = emp[arrKey].length;
+    const max = (type==='vacation')?emp.maxVacation:(type==='sick')?emp.maxSick:emp.maxOther;
+    if(used >= max){
+      if(!confirm(`${name} has used ${used}/${max} ${type} days. Add anyway?`)) return;
+    }
+    emp[arrKey].push(dateStr);
+  }
+  saveState(); renderCalendar(user); renderSummary(user);
+}
+
+/* =============================
+   Modal (Stats / Edit)
+   ============================= */
+let activeEmployee = null;
+
+function openStats(name, user){
+  activeEmployee = name;
+  const e = state.employees[name]; if(!e) return;
+  const isAdmin = user.role==='admin';
+
+  modalEmpName.textContent = name;
+  vacNumbers.textContent = `${e.vacationDays.length} / ${e.maxVacation} used`;
+  sickNumbers.textContent = `${e.sickDays.length} / ${e.maxSick} used`;
+  otherNumbers.textContent = `${e.otherDays.length} / ${e.maxOther} used`;
+  setBar(vacBar, e.vacationDays.length, e.maxVacation, getTypeColor('vacation'));
+  setBar(sickBar, e.sickDays.length, e.maxSick, getTypeColor('sick'));
+  setBar(otherBar, e.otherDays.length, e.maxOther, getTypeColor('other'));
+
+  vacMaxInput.value = e.maxVacation;
+  sickMaxInput.value = e.maxSick;
+  otherMaxInput.value = e.maxOther;
+
+  // Admin controls visible/editable; viewers read-only
+  vacMaxInput.disabled = !isAdmin;
+  sickMaxInput.disabled = !isAdmin;
+  otherMaxInput.disabled = !isAdmin;
+  saveBtn.disabled = !isAdmin;
+  deleteBtn.disabled = !isAdmin;
+
+  // Account section:
+  accountMgmt.style.display = isAdmin ? 'block' : 'none';
+  const users = getUsers();
+  const linked = users.find(u => u.role==='viewer' && u.employeeName === name);
+  if(linked){
+    acctStatus.textContent = `Linked to "${linked.username}"`;
+    acctUsername.value = linked.username;
+  }else{
+    acctStatus.textContent = 'No linked viewer account';
+    acctUsername.value = '';
+  }
+  acctPassword.value = '';
+
+  // Save handler updates both max days and account info if admin
+  saveBtn.onclick = ()=> saveModalChanges(user);
+
+  // Delete handler
+  deleteBtn.onclick = ()=> deleteEmployeeFromModal(user);
+
+  // Close
+  statsModal.classList.add('active');
+}
+function setBar(el, used, max, color){
+  const pct = max>0 ? Math.min(100, Math.round((used/max)*100)) : (used>0?100:0);
+  el.style.width = pct + '%';
+  el.style.background = color;
+  el.textContent = `${used} / ${max}`;
+}
+function saveModalChanges(user){
+  if(user.role!=='admin') return;
+  if(!activeEmployee) return;
+  const e = state.employees[activeEmployee];
+
+  const newVac = Math.max(0, parseInt(vacMaxInput.value) || 0);
+  const newSick = Math.max(0, parseInt(sickMaxInput.value) || 0);
+  const newOther = Math.max(0, parseInt(otherMaxInput.value) || 0);
+
+  if(newVac < e.vacationDays.length && !confirm(`Vacation max (${newVac}) < used (${e.vacationDays.length}). Continue?`)) return;
+  if(newSick < e.sickDays.length && !confirm(`Sick max (${newSick}) < used (${e.sickDays.length}). Continue?`)) return;
+  if(newOther < e.otherDays.length && !confirm(`Other max (${newOther}) < used (${e.otherDays.length}). Continue?`)) return;
+
+  e.maxVacation = newVac; e.maxSick = newSick; e.maxOther = newOther;
+
+  // Account link / password reset
+  const uname = acctUsername.value.trim();
+  const pwd = acctPassword.value;
+  const users = getUsers();
+  let linked = users.find(u => u.role==='viewer' && u.employeeName === activeEmployee);
+
+  if(uname){
+    // if linked exists and username changed, ensure not colliding
+    const collides = users.some(u => u.username === uname && (!linked || u !== linked));
+    if(collides){ alert('Username already exists. Pick another.'); return; }
+
+    if(linked){
+      // update username
+      linked.username = uname;
+      if(pwd) linked.password = pwd;
+    }else{
+      // create new linked viewer
+      if(!pwd){ alert('Set a password for the new viewer account.'); return; }
+      users.push({ username: uname, password: pwd, role:'viewer', employeeName: activeEmployee });
+    }
+  }else if(pwd){
+    // cannot set password without username
+    alert('Enter a username to set/reset the password.'); return;
+  }
+  saveUsers(users);
+
+  saveState();
+  // Refresh UI (stay in modal)
+  const session = getSession();
+  renderSummary(session);
+  renderCalendar(session);
+  openStats(activeEmployee, session); // re-open to refresh bars/labels
+}
+
+function deleteEmployeeFromModal(user){
+  if(user.role!=='admin') return;
+  if(!activeEmployee) return;
+  if(!confirm(`Delete ${activeEmployee} and all records?`)) return;
+
+  // Remove any linked user
+  const users = getUsers().filter(u => !(u.role==='viewer' && u.employeeName === activeEmployee));
+  saveUsers(users);
+
+  delete state.employees[activeEmployee];
+  saveState();
+
+  // Close & refresh
+  activeEmployee = null;
+  statsModal.classList.remove('active');
+  const session = getSession();
+  renderEmployeeSelect(session); renderSummary(session); renderCalendar(session);
+}
+
+/* Close modal on background click */
+statsModal.addEventListener('click', (ev)=>{ if(ev.target === statsModal) statsModal.classList.remove('active'); });
+document.getElementById('closeBtn').addEventListener('click', ()=> statsModal.classList.remove('active'));
+
+/* =============================
+   END
+   ============================= */
+</script>
+</body>
+</html>
